@@ -1,0 +1,101 @@
+#define MOTOR_D1_PIN 7
+#define MOTOR_D2_PIN 8
+#define MOTOR_PWM_PIN 6
+#define LED_DIS 9
+#define DATA_PIN 11
+#define CLK_PIN 13
+#define SS_PIN_1 10
+
+int setpoint=0;
+int map7seg[10]={
+  0x3F,0x06,0x5B,0x4F,0x66,0x6D,0x7D,0x07,0x7F,0x6F
+};
+int interruptChannelAPin=2;
+int interruptChannelBPin=3;
+volatile int encoderCount=0;
+volatile int digit=0;
+void moveForward (int speed) 
+{
+  digitalWrite(MOTOR_D1_PIN,HIGH);
+  digitalWrite(MOTOR_D2_PIN,LOW);
+  analogWrite(MOTOR_PWM_PIN,speed);
+}
+
+void write7Segment(unsigned char num){
+  int digit1=(num/10)%10;
+  int digit2=num%10;
+  shiftOut(DATA_PIN,CLK_PIN,MSBFIRST,map7seg[digit1]);
+  shiftOut(DATA_PIN,CLK_PIN,MSBFIRST,map7seg[digit2]);
+  digitalWrite(SS_PIN_1,HIGH);
+  digitalWrite(SS_PIN_1,LOW);
+}
+
+void moveBackward (int speed) 
+{
+  digitalWrite(MOTOR_D1_PIN,LOW);
+  digitalWrite(MOTOR_D2_PIN,HIGH);
+  analogWrite(MOTOR_PWM_PIN,speed);
+}
+void setSpeed (int speed)
+{
+  if (speed>0)
+  {
+    if(speed>255)
+    {speed=255;}
+    moveForward(speed);
+  }
+ else if (speed<0)
+ {
+   speed=speed*(-1);
+   if (speed>255)
+   {speed=255;}
+   moveBackward(speed);
+ }
+ else
+ {
+   moveForward(1);
+ }
+}
+void setup()
+{
+  pinMode(MOTOR_D1_PIN,OUTPUT);
+  pinMode(MOTOR_D2_PIN,OUTPUT);
+  pinMode(MOTOR_PWM_PIN,OUTPUT);
+  pinMode(A0,INPUT);
+  pinMode(interruptChannelAPin,INPUT_PULLUP);
+  pinMode(interruptChannelBPin,INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(interruptChannelAPin),ChannelA_callback,RISING);
+  attachInterrupt(digitalPinToInterrupt(interruptChannelBPin),ChannelB_callback,RISING);
+  Serial.begin(9600);
+    write7Segment(69);
+}
+void loop()
+{
+
+  setSpeed(setpoint);
+  Serial.println(setpoint);
+  Serial.println(encoderCount);
+  Serial.println(digit);
+
+  delay(1000);
+}
+void serialEvent() 
+{
+  setpoint = Serial.parseInt();
+}
+
+void ChannelA_callback(){
+  if(digitalRead(interruptChannelAPin)==1&&digitalRead(interruptChannelBPin)==0){
+    encoderCount++;
+digit = (encoderCount/100);
+  }
+  
+}
+
+void ChannelB_callback(){
+  if(digitalRead(interruptChannelAPin)==0&&digitalRead(interruptChannelBPin)==1){
+    encoderCount--;
+ digit = (encoderCount/100);
+  }
+   
+}
